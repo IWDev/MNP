@@ -18,8 +18,9 @@ namespace MNP.Server
         {
             // Setup core properties
             this.LogProvider = (logProvider != null) ? logProvider : new DefaultLogProvider(LogLevel.None);
-            this.DependancyInjector = new Injector(this.LogProvider);
-
+            this.DependancyInjector = Injector.Instance;
+            this.DependancyInjector.LogProvider = this.LogProvider;
+            
             // Setup the IoC container
             this.DependancyInjector.Bind<ILogProvider>(this.LogProvider);
             this.DependancyInjector.Bind<ISocket, TCPSocket>();

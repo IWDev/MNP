@@ -9,12 +9,22 @@ namespace MNP.Core
     /// </summary>
     public sealed class Injector
     {
-        private readonly ILogProvider LogProvider;
+        #region "Singleton Pattern"
+        private static class SingletonHolder
+        {
+            internal static readonly Injector instance = new Injector();
+            // Empty static constructor - forces laziness!
+            static SingletonHolder() { }
+        }
+
+        public static Injector Instance { get { return SingletonHolder.instance; } }
+        #endregion
+
+        public ILogProvider LogProvider { get; set; }
         private readonly Dictionary<Type, Func<object>> dependancies = new Dictionary<Type, Func<object>>();
 
-        public Injector(ILogProvider logProvider)
+        private Injector()
         {
-            this.LogProvider = logProvider;
         }
 
         public void Bind<TBase, TDerived>() where TDerived : TBase
@@ -29,6 +39,7 @@ namespace MNP.Core
 
         public T Resolve<T>()
         {
+            this.LogProvider.Log(String.Format("Resolving {0}...", typeof(T).Name), "Injector.Resolve", LogLevel.Verbose);
             return (T)Resolve(typeof(T));
         }
 
@@ -59,5 +70,9 @@ namespace MNP.Core
             return null;
         }
 
+        public void Clear()
+        {
+            dependancies.Clear();
+        }
     }
 }
