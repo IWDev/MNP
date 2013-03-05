@@ -21,6 +21,8 @@ namespace MNP.Server
 
         internal byte[] DataBuffer { get; set; }
 
+        internal bool PendingReceiveOperation { get; set; }
+
         internal void Reset()
         {
             DataBuffer = null;

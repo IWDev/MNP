@@ -7,6 +7,7 @@ namespace MNP.Core
     /// A simple generic cache that supports subscribtions.
     /// </summary>
     /// <typeparam name="T">Must be a class.</typeparam>
+    [Serializable]
     public class ObservableCache<T, Y> : IObservable<Y>, IDisposable where T : class
     {
         #region "Cache Implementation"

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 
 namespace MNP.Server.Observers
 {
+    [Serializable]
     public class PrioritisedQueueObserver : IObserver<ClientProcess>
     {
         private Node ParentNode { get; set; }
@@ -41,15 +42,15 @@ namespace MNP.Server.Observers
             this.LogProvider.Log(error.Message, "PrioritisedQueueObserver", LogLevel.Verbose);
         }
 
-        public void OnNext(ClientProcess value)
+        public async void OnNext(ClientProcess value)
         {
-            Task.Run(() =>
+            await Task.Run(() =>
             {
                 // Get the list of nodes
                 List<IPAddress> nodes = this.ParentNode.KnownNodes;
 
                 // if there are no nodes, there is no point serialising the message
-                if (nodes != null)
+                if (nodes != null && !value.LocalOnly)
                 {
                     // setup the message before sending
                     InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = this.ParentNode.ClientProcessSerialiser.Serialise(value), IsLocalOnly = true, MessageType = InterNodeMessageType.AddToQueue };
@@ -63,9 +64,16 @@ namespace MNP.Server.Observers
                     }
 
                     // be a good boy and clean up after ourselves
-                    nodes.Clear();
+                    nodes.Clear(); 
                 }
             });
+
+            if (!value.LocalOnly)
+            {
+                // start the task
+                Task<byte[]> task = this.ParentNode.NodeTask.Execute(value.Data);
+                this.ParentNode.AddToCache(false, value.Tag, await task);
+            }
         }
     }
 }

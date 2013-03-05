@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Net;
 using MNP.Core.Enums;
 
 namespace MNP.Core.Classes
 {
+    [Serializable]
     public class ClientProcess : IPrioritised
     {
         /// <summary>
@@ -15,14 +17,18 @@ namespace MNP.Core.Classes
         /// </summary>
         public DateTime TimeStamp { get; private set; }
 
-        ClientProcess()
+        public ClientProcess()
         {
             this.TimeStamp = DateTime.UtcNow;
-            this.Priority = QueuePriority.None;
+            this.Priority = QueuePriority.Normal;
         }
 
         public string Tag { get; set; }
 
         public QueuedProcessState State { get; set; }
+
+        public byte[] Data { get; set; }
+        public bool LocalOnly { get; set; }
+        public IPAddress Source { get; set; }
     }
 }

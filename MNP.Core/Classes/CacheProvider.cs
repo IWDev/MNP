@@ -10,6 +10,7 @@ namespace MNP.Core
     /// </summary>
     /// <typeparam name="T">The key type</typeparam>
     /// <typeparam name="Y">The value type</typeparam>
+    [Serializable]
     public abstract class CacheProvider<T, Y> : IObservable<Y>, IDisposable where T : class
     {
         // Maintains a list of subscribers from which we can notify about changes to the cache
@@ -116,6 +117,17 @@ namespace MNP.Core
                     // remove the observer from the list
                     _subscribers.Remove(observer);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Clears the subscribers ready for transportation across the interwebs.
+        /// </summary>
+        public void ClearSubscribersNoNotify()
+        {
+            lock (_subscribers)
+            {
+                _subscribers.Clear();
             }
         }
 

@@ -15,49 +15,32 @@ namespace MNP.Server
     {
         #region "Private Variables"
         private Socket _socket;
-        private IBufferManagerProvider _bufferManager;
+        private ManagedStack<byte[]> _buffers = new ManagedStack<byte[]>(400, false);
+        private ManagedStack<SocketAsyncEventArgs> _saeas = new ManagedStack<SocketAsyncEventArgs>(400, false);
         private ManagedStack<byte[]> _tempBuffers = new ManagedStack<byte[]>(400, false);
         private PacketType _type = PacketType.UDP;
         #endregion
 
         #region "Public Properties"
-        public Int32 Port { get; private set; }
+        public Int32 Port { get; set; }
         public Int32 MessagePrefixLength { get; set; }
-        public IPAddress ListeningAddress { get; private set; }
-        public IPAddress BroadcastSourceAddress { get { return this.ListeningAddress; } }
+        public IPAddress BindingAddress { get; set; }
+        public IPAddress BroadcastSourceAddress { get { return this.BindingAddress; } }
         public ILogProvider LogProvider { get; private set; }
         public bool AllowAddressReuse { get; set; }
         public bool UseBroadcasting { get; set; }
         #endregion
 
         #region "Constructors"
-        private UDPSocket() { }
-        public UDPSocket(String listeningAddress) : this(listeningAddress, 4444, null, null) { }
-        public UDPSocket(String listeningAddress, Int32 port) : this(listeningAddress, port, null, null) { }
-        public UDPSocket(Int32 port) : this("0.0.0.0", port, null, null) { }
-
-        public UDPSocket(String listeningAddress, Int32 port, IBufferManagerProvider manager, ILogProvider logger)
+        public UDPSocket(ILogProvider logger)
         {
-            // Setup the port
-            if (port <= 0)
-            {
-                throw new ArgumentException("Port number cannot be less than 0.");
-            }
-            else
-            {
-                this.Port = port;
-            }
-
-            // check the ip address
-            if (String.IsNullOrEmpty(listeningAddress))
-            {
-                throw new Exception("The listening address supplied is not valid.");
-            }
-            this.ListeningAddress = (listeningAddress == "0.0.0.0") ? IPAddress.Any : IPAddress.Parse(listeningAddress);
-
             // check the interfaces
-            this.LogProvider = (logger == null) ? new DefaultLogProvider(LogLevel.None) : logger;
-            _bufferManager = (manager == null) ? new DefaultBufferManager(100, 2048, null, null) : manager;
+            if (logger == null)
+            {
+                throw new ArgumentNullException("logger");
+            }
+
+            this.LogProvider = logger;
 
             // use a default message prefix if not set
             if (this.MessagePrefixLength <= 0)
@@ -69,6 +52,8 @@ namespace MNP.Server
             for (Int32 i = 0; i < 400; i++)
             {
                 _tempBuffers.Insert(new byte[this.MessagePrefixLength]);
+                _buffers.Insert(new byte[512]);
+                _saeas.Insert(new SocketAsyncEventArgs());
             }
         }
         #endregion
@@ -79,11 +64,11 @@ namespace MNP.Server
         #region "Internal handler methods"
         private void Receive()
         {
-            SocketAsyncEventArgs args = _bufferManager.TakeNextSocketAsyncEventArgs();
-            byte[] buff = _bufferManager.TakeNextBuffer();
+            SocketAsyncEventArgs args = _saeas.TakeNext();
+            byte[] buff = _buffers.TakeNext();
             args.SetBuffer(buff, 0, buff.Length);
             args.Completed += PacketReceived;
-            args.RemoteEndPoint = new IPEndPoint(this.ListeningAddress, this.Port);
+            args.RemoteEndPoint = new IPEndPoint(this.BindingAddress, this.Port);
 
             try
             {
@@ -108,6 +93,14 @@ namespace MNP.Server
         {
             // Start a new Receive operation straight away
             Receive();
+
+            if (e.ReceiveMessageFromPacketInfo.Address == null)
+            {
+                // this needs a permenant fix
+                Console.WriteLine("Null address, exiting...");
+                return;
+            }
+
 
             // Now process the packet that we have already
             if (e.BytesTransferred <= MessagePrefixLength)
@@ -146,7 +139,7 @@ namespace MNP.Server
             }
 
             // Create a data buffer
-            byte[] data = _bufferManager.TakeNextBuffer(); // new byte[messageLength];
+            byte[] data = _buffers.TakeNext(); // new byte[messageLength];
 
             // Copy the remaining data to the data buffer on the user token
             Buffer.BlockCopy(e.Buffer, e.Offset + MessagePrefixLength, data, 0, messageLength);
@@ -157,7 +150,7 @@ namespace MNP.Server
             if (evnt != null)
             {
                 evnt(e, new SocketDataEventArgs(data, _type, e.ReceiveMessageFromPacketInfo.Address));
-                _bufferManager.InsertBuffer(data);
+                _buffers.Insert(data);
             }
 
             // Data is safely stored, so unhook the event and return the SocketAsyncEventArgs back to the pool
@@ -167,26 +160,26 @@ namespace MNP.Server
         private void ReleaseArgs(SocketAsyncEventArgs e)
         {
             e.Completed -= PacketReceived;
-            _bufferManager.InsertSocketAsyncEventArgs(e);
-            _bufferManager.InsertBuffer(e.Buffer);
+            _saeas.Insert(e);
+            _buffers.Insert(e.Buffer);
         }
         #endregion
 
         #region "ISocket implicit implementation"
         public void Start()
         {
-            if (this.UseBroadcasting && this.ListeningAddress == IPAddress.Any)
+            if (this.UseBroadcasting && this.BindingAddress == IPAddress.Any)
             {
                 throw new NotSupportedException("Broadcasting can only be used on a specific interface. Please set the Server Binding Address properly.");
             }
 
             this.LogProvider.Log("Starting. Creating socket", "UDPSocket.Start", LogLevel.Verbose);
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            _socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
             _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, this.AllowAddressReuse ? 1 : 0);
-            _socket.Bind(new IPEndPoint(this.ListeningAddress, this.Port));
-            //_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, this.UseBroadcasting ? 1 : 0);
-            
+            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, this.UseBroadcasting ? 1 : 0);
+            _socket.Bind(new IPEndPoint(this.BindingAddress, this.Port));
+            _socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
+
             if (this.UseBroadcasting)
             {
                 _type = PacketType.BroadcastUDP;
@@ -237,7 +230,7 @@ namespace MNP.Server
             IPAddress ip = IPAddress.Parse(address);
 
             // take and prepare the args
-            SocketAsyncEventArgs e = _bufferManager.TakeNextSocketAsyncEventArgs();
+            SocketAsyncEventArgs e = _saeas.TakeNext();
             e.SetBuffer(data, 0, data.Length);
 
             // Set the end point

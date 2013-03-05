@@ -2,6 +2,10 @@
 [Bb]in/
 [Oo]bj/
 
+#Test folders
+TestServer/
+TestClient/
+
 # mstest test results
 TestResults
 

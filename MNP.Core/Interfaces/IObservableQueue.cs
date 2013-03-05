@@ -34,5 +34,9 @@ namespace MNP.Core
         void ChangeState(string id, QueuedProcessState newState);
 
         void Remove(Predicate<T> criteria);
+
+        IDisposable Subscribe(IObserver<T> observer);
+
+        void Unsubscribe(IObserver<T> observer);
     }
 }

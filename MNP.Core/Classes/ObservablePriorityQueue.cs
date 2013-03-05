@@ -172,5 +172,16 @@ namespace MNP.Core
         {
             _data.First(x => x.Tag == id).State = newState;
         }
+
+        /// <summary>
+        /// Clears the subscribers ready for transportation across the interwebs.
+        /// </summary>
+        public void ClearSubscribers()
+        {
+            lock (_subscribers)
+            {
+                _subscribers.Clear();
+            }
+        }
     }
 }

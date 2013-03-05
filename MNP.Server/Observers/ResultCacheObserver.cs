@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace MNP.Server.Observers
 {
+    [Serializable]
     internal class ResultCacheObserver : IObserver<ClientResultMessage>
     {
         private Node ParentNode { get; set; }

@@ -52,7 +52,7 @@ namespace MNP.Server.Providers
         /// Logs the message to the underlying storage provider
         /// </summary>
         /// <param name="message">The message to log</param>
-        /// <param name="source">The source (EG. ClassName.MethodName</param>
+        /// <param name="source">The source (EG. ClassName.MethodName)</param>
         /// <param name="loggingLevel">The minimum level of logging needed</param>
         public void Log(string message, string source, LogLevel loggingLevel)
         {
@@ -64,6 +64,7 @@ namespace MNP.Server.Providers
             {
                 // this will do for now, add a proper implementation later.
                 Debug.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(), source, message);
+                Console.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(), source, message);
             }
         }
         

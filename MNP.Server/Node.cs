@@ -1,58 +1,68 @@
-﻿using MNP.Core;
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Threading.Tasks;
+using MNP.Core;
 using MNP.Core.Classes;
 using MNP.Core.Enums;
 using MNP.Core.Messages;
 using MNP.Core.Serialisers;
 using MNP.Server.Observers;
 using MNP.Server.Providers;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Net;
-using System.Threading.Tasks;
 
 namespace MNP.Server
 {
     public sealed class Node
     {
-        #region "Properties"
-        /// <summary>
-        /// The port that clients will connect to.
-        /// </summary>
-        private Int32 ClientPort { get; set; }
-        /// <summary>
-        /// The port that other nodes will connect to.
-        /// </summary>
-        private Int32 ServerPort { get; set; }
-        /// <summary>
-        /// The port used for auto discovery
-        /// </summary>
-        private Int32 AutoDiscoveryPort { get; set; }
-        /// <summary>
-        /// The local address that the socket used to talk to clients will bind on.
-        /// </summary>
-        private String ClientBindingAddress { get; set; }
-        /// <summary>
-        /// The local address that the socket used to talk to other nodes will bind on.
-        /// </summary>
-        private String ServerBindingAddress { get; set; }
-        /// <summary>
-        /// Determines whether to use AutoDiscovery functionality or not. Must be set before Start() is called.
-        /// </summary>
-        public bool UseAutoDiscovery { get; set; }
-        /// <summary>
-        /// Determines whether or not this node instance is a master node
-        /// </summary>
-        public bool IsMasterNode { get; private set; }
+        public Node(ILogProvider logProvider = null)
+        {
+            // Setup core properties
+            this.LogProvider = (logProvider != null) ? logProvider : new DefaultLogProvider(LogLevel.None);
+            this.DependancyInjector = new Injector(this.LogProvider);
 
+            // Setup the IoC container
+            this.DependancyInjector.Bind<ILogProvider>(this.LogProvider);
+            this.DependancyInjector.Bind<ISocket, TCPSocket>();
+            this.DependancyInjector.Bind<IBroadcastSocket, UDPSocket>();
+            this.DependancyInjector.Bind<CacheProvider<String, ClientResultMessage>, DefaultCache<String, ClientResultMessage>>();
+            this.DependancyInjector.Bind<IObservableQueue<ClientProcess>, ObservablePriorityQueue<ClientProcess>>();
+            this.DependancyInjector.Bind<ISerialiser<AutoDiscoveryMessage, byte[]>, DefaultSerialiser<AutoDiscoveryMessage>>();
+            this.DependancyInjector.Bind<ISerialiser<ClientMessage, byte[]>, DefaultSerialiser<ClientMessage>>();
+            this.DependancyInjector.Bind<ISerialiser<ClientProcess, byte[]>, DefaultSerialiser<ClientProcess>>();
+            this.DependancyInjector.Bind<ISerialiser<ClientResultMessage, byte[]>, DefaultSerialiser<ClientResultMessage>>();
+            this.DependancyInjector.Bind<ISerialiser<InterNodeCommunicationMessage, byte[]>, DefaultSerialiser<InterNodeCommunicationMessage>>();
+            this.DependancyInjector.Bind<ISerialiser<IObservableQueue<ClientProcess>, byte[]>, DefaultSerialiser<IObservableQueue<ClientProcess>>>();
+            this.DependancyInjector.Bind<IObservableQueue<ClientProcess>, ObservablePriorityQueue<ClientProcess>>();
+        }
+
+        #region "Private Members"
+        private List<IPAddress> _autoDiscoveryList = new List<IPAddress>();
+        private ISocket _internodeListeningSocket;
+        private ISocket _internodeConnectionSocket;
+        private ISocket _clientCommunicationsSocket;
+        private IBroadcastSocket _autoDiscoverySocket;
+        private PluginManager _pluginManager;
         private ILogProvider LogProvider { get; set; }
+        internal INodeTask NodeTask;
+        #endregion
+
+        #region "Properties"
+        public String AutoDiscoveryBindingAddress { get; set; }
+        public Int32 AutoDiscoveryPort { get; set; }
+        public String ClientBindingAddress { get; set; }
+        public Int32 ClientPort { get; set; }
+        public Injector DependancyInjector { get; set; }
+        public String InternodeBindingAddress { get; set; }
+        public Int32 InternodePort { get; set; }
+        public bool UseAutoDiscovery { get; set; }
+
         internal ISerialiser<AutoDiscoveryMessage, byte[]> AutoDiscoveryMessageSerialiser { get; private set; }
         internal ISerialiser<ClientMessage, byte[]> ClientMessageSerialiser { get; private set; }
         internal ISerialiser<ClientProcess, byte[]> ClientProcessSerialiser { get; private set; }
         internal ISerialiser<ClientResultMessage, byte[]> ClientResultMessageSerialiser { get; private set; }
         internal ISerialiser<InterNodeCommunicationMessage, byte[]> InterNodeCommunicationMessageSerialiser { get; private set; }
         internal ISerialiser<CacheProvider<string, ClientResultMessage>, byte[]> CacheSerialiser { get; set; }
-        internal ISerialiser<ObservablePriorityQueue<ClientProcess>, byte[]> PrioritisedQueueSerialiser { get; set; }
+        internal ISerialiser<IObservableQueue<ClientProcess>, byte[]> PrioritisedQueueSerialiser { get; set; }
         internal List<IPAddress> KnownNodes
         {
             get
@@ -69,115 +79,89 @@ namespace MNP.Server
         }
         #endregion
 
-        #region "Private Members"
-        private List<IDisposable> _disposableResources = new List<IDisposable>();
-        private List<IPAddress> _autoDiscoveryList = new List<IPAddress>();
-        private ISocket _internodeListeningSocket;
-        private ISocket _internodeConnectionSocket;
-        private ISocket _clientCommunicationsSocket;
-        private IBroadcastSocket _autoDiscoverySocket;
-        private PluginManager _pluginManager;
-        #endregion
-
         #region "Message Collections"
-        // not needed
-        public readonly ObservableCollection<byte[]> DataReceived = new ObservableCollection<byte[]>();
-        // end of not needed
-
-        /// <summary>
-        /// Stores all of the results from the cache entry
-        /// </summary>
         private CacheProvider<String, ClientResultMessage> ResultCache { get; set; }
-
-        private ObservablePriorityQueue<ClientProcess> ProcessQueue { get; set; }
-        #endregion
-
-        #region "Constructors"
-        private Node() { }
-
-        public Node(Int32 clientPort, Int32 nodePort) : this(clientPort, nodePort, "", "", "", "", null, "") { }
-        public Node(Int32 clientPort, Int32 nodePort, String clientBindingAddress, String nodeBindingAddress) : this(clientPort, nodePort, clientBindingAddress, nodeBindingAddress, "", "", null, "") { }
-        public Node(Int32 clientPort, Int32 nodePort, String clientBindingAddress, String nodeBindingAddress, String clientSocketType, String nodeSocketType) : this(clientPort, nodePort, clientBindingAddress, nodeBindingAddress, "", "", null, "") { }
-        public Node(Int32 clientPort, Int32 nodePort, String clientBindingAddress, String nodeBindingAddress, String clientSocketType, String nodeSocketType, ILogProvider logger, String configurationPath)
-        {
-            if (String.IsNullOrEmpty(configurationPath))
-            {
-                InitWithDefaults(clientPort, nodePort, clientBindingAddress, nodeBindingAddress, logger);
-            }
-            else
-            {
-                if (!LoadConfiguration(configurationPath))
-                {
-                    InitWithDefaults(clientPort, nodePort, clientBindingAddress, nodeBindingAddress, logger);
-                }
-            }
-        }
-
-        private void InitWithDefaults(Int32 clientPort, Int32 nodePort, String clientBindingAddress, String nodeBindingAddress, ILogProvider logger)
-        {
-            this.ClientPort = (clientPort == 0) ? 270 : clientPort;
-            this.ServerPort = (nodePort == 0) ? 280 : nodePort;
-            this.ClientBindingAddress = String.IsNullOrEmpty(clientBindingAddress) ? "0.0.0.0" : clientBindingAddress;
-            this.ServerBindingAddress = String.IsNullOrEmpty(nodeBindingAddress) ? "0.0.0.0" : nodeBindingAddress;
-            this.LogProvider = (logger == null) ? new DefaultLogProvider(LogLevel.None) : logger;
-
-            _clientCommunicationsSocket = new TCPSocket(this.ClientBindingAddress, this.ClientPort);
-            _internodeListeningSocket = new TCPSocket(this.ServerBindingAddress, this.ServerPort);
-            _internodeConnectionSocket = new TCPSocket(285);
-
-            AutoDiscoveryMessageSerialiser = new DefaultSerialiser<AutoDiscoveryMessage>();
-            CacheSerialiser = new DefaultSerialiser<CacheProvider<string, ClientResultMessage>>();
-            ClientMessageSerialiser = new DefaultSerialiser<ClientMessage>();
-            ClientProcessSerialiser = new DefaultSerialiser<ClientProcess>();
-            ClientResultMessageSerialiser = new DefaultSerialiser<ClientResultMessage>();
-            InterNodeCommunicationMessageSerialiser = new DefaultSerialiser<InterNodeCommunicationMessage>();
-            PrioritisedQueueSerialiser = new DefaultSerialiser<ObservablePriorityQueue<ClientProcess>>();
-        }
+        private IObservableQueue<ClientProcess> ProcessQueue { get; set; }
         #endregion
 
         #region "Start/Stop"
         public void Start()
         {
-            // if not set, load the defaults
-            if (this.ResultCache == null)
-            {
-                this.ResultCache = new DefaultCache<String, ClientResultMessage>();
-            }
+            // Resolve all the types
+            this._clientCommunicationsSocket = this.DependancyInjector.Resolve<ISocket>();
+            this._internodeConnectionSocket = this.DependancyInjector.Resolve<ISocket>();
+            this._internodeListeningSocket = this.DependancyInjector.Resolve<ISocket>();
+            this.AutoDiscoveryMessageSerialiser = this.DependancyInjector.Resolve<ISerialiser<AutoDiscoveryMessage, byte[]>>();
+            this.CacheSerialiser = this.DependancyInjector.Resolve<ISerialiser<CacheProvider<String, ClientResultMessage>, byte[]>>();
+            this.ClientMessageSerialiser = this.DependancyInjector.Resolve<ISerialiser<ClientMessage, byte[]>>();
+            this.ClientProcessSerialiser = this.DependancyInjector.Resolve<ISerialiser<ClientProcess, byte[]>>();
+            this.ClientResultMessageSerialiser = this.DependancyInjector.Resolve<ISerialiser<ClientResultMessage, byte[]>>();
+            this.InterNodeCommunicationMessageSerialiser = this.DependancyInjector.Resolve<ISerialiser<InterNodeCommunicationMessage, byte[]>>();
+            this.PrioritisedQueueSerialiser = this.DependancyInjector.Resolve<ISerialiser<IObservableQueue<ClientProcess>, byte[]>>();
+            this.ProcessQueue = this.DependancyInjector.Resolve<IObservableQueue<ClientProcess>>();
+            this.ResultCache = this.DependancyInjector.Resolve<CacheProvider<String, ClientResultMessage>>();
+            this.NodeTask = this.DependancyInjector.Resolve<INodeTask>();
 
-            if (this.ProcessQueue == null)
-            {
-                this.ProcessQueue = new ObservablePriorityQueue<ClientProcess>();
-            }
 
             // Setup the auto discovery socket (if applicable)
             if (this.UseAutoDiscovery)
             {
-                if (this.AutoDiscoveryPort == 0)
+                if (this.AutoDiscoveryPort <= 0)
                 {
                     this.AutoDiscoveryPort = 275;
                 }
-
-                _autoDiscoverySocket = new UDPSocket("192.168.63.1", this.AutoDiscoveryPort);
+                _autoDiscoverySocket = this.DependancyInjector.Resolve<IBroadcastSocket>();
                 _autoDiscoverySocket.AllowAddressReuse = true;
                 _autoDiscoverySocket.UseBroadcasting = true;
+                _autoDiscoverySocket.Port = this.AutoDiscoveryPort;
+                _autoDiscoverySocket.BindingAddress = IPAddress.Parse(this.AutoDiscoveryBindingAddress);
             }
 
             // hook up the events ready
-            _disposableResources.Add(this.ResultCache.Subscribe(new ResultCacheObserver(this, this.LogProvider)));
-            _disposableResources.Add(this.ProcessQueue.Subscribe(new PrioritisedQueueObserver(this, this.LogProvider)));
-            _internodeListeningSocket.OnDataReceived += _internodeCommunicationsSocket_OnDataReceived;
-            _internodeListeningSocket.OnClientConnectCompleted += _internodeConnectionSocket_OnClientConnectCompleted;
-            _internodeConnectionSocket.OnDataReceived += _internodeCommunicationsSocket_OnDataReceived;
-            _internodeConnectionSocket.OnClientConnectCompleted += _internodeConnectionSocket_OnClientConnectCompleted;
-            _clientCommunicationsSocket.OnDataReceived += _clientCommunicationsSocket_OnDataReceived;
+            this.ResultCache.Subscribe(new ResultCacheObserver(this, this.LogProvider));
+            this.ProcessQueue.Subscribe(new PrioritisedQueueObserver(this, this.LogProvider));
+            _internodeConnectionSocket.OnClientConnectCompleted += internode_OnClientConnectCompleted;
+            _internodeConnectionSocket.OnDataReceived += internode_OnDataReceived;
+            _internodeListeningSocket.OnClientConnectCompleted += internode_OnClientConnectCompleted;
+            _internodeListeningSocket.OnDataReceived += internode_OnDataReceived;
+            _clientCommunicationsSocket.OnDataReceived += client_OnDataReceived;
 
-            _pluginManager = new PluginManager();
+
+            // setup the arguments ready
+            if (this.ClientPort <= 0)
+            {
+                this.ClientPort = 270;
+            }
+            if (this.InternodePort <= 0)
+            {
+                this.InternodePort = 280;
+            }
+
+            if (String.IsNullOrEmpty(this.ClientBindingAddress))
+            {
+                this.ClientBindingAddress = "0.0.0.0";
+            }
+            if (String.IsNullOrEmpty(this.InternodeBindingAddress))
+            {
+                this.InternodeBindingAddress = "0.0.0.0";
+            }
+
+            _clientCommunicationsSocket.Port = this.ClientPort;
+            _clientCommunicationsSocket.BindingAddress = IPAddress.Parse(this.ClientBindingAddress);
+
+            _internodeConnectionSocket.Port = this.InternodePort;
+            _internodeConnectionSocket.BindingAddress = IPAddress.Parse(this.InternodeBindingAddress);
+
+            _internodeListeningSocket.Port = this.InternodePort;
+            _internodeListeningSocket.BindingAddress = IPAddress.Parse(this.InternodeBindingAddress);
+
+            //_pluginManager = new PluginManager();
             _internodeListeningSocket.Start();
             _clientCommunicationsSocket.Start();
 
             if (this.UseAutoDiscovery)
             {
-                _autoDiscoverySocket.OnDataReceived += _autoDiscoverySocket_OnDataReceived;
+                _autoDiscoverySocket.OnDataReceived += autodiscovery_OnDataReceived;
                 _autoDiscoverySocket.Start();
                 _autoDiscoverySocket.SendBroadcastMessage(BroadcastMessageType.Startup, this.AutoDiscoveryMessageSerialiser, this.AutoDiscoveryPort);
             }
@@ -187,28 +171,24 @@ namespace MNP.Server
         {
             _internodeListeningSocket.Stop();
             _clientCommunicationsSocket.Stop();
-
-            if (this.UseAutoDiscovery)
-            {
-                _autoDiscoverySocket.SendBroadcastMessage(BroadcastMessageType.Shutdown, this.AutoDiscoveryMessageSerialiser, this.AutoDiscoveryPort);
-                _autoDiscoverySocket.Stop();
-            }
+            _autoDiscoverySocket.SendBroadcastMessage(BroadcastMessageType.Shutdown, this.AutoDiscoveryMessageSerialiser, this.AutoDiscoveryPort);
+            _autoDiscoverySocket.Stop();
         }
         #endregion
 
-        #region "Data handlers"
-        #region "Socket Handlers"
-        private void _clientCommunicationsSocket_OnDataReceived(object sender, SocketDataEventArgs e)
+        #region "Socket Data handlers"
+        #region"ClientSocket"
+        private void client_OnDataReceived(object sender, SocketDataEventArgs e)
         {
             ClientMessage msg = ClientMessageSerialiser.Deserialise(e.Data);
 
             switch (msg.MessageType)
             {
                 case ClientMessageType.FetchResult:
-                    GetResultFromCache(msg.Tag, msg.Data);
+                    GetResultFromCache(e.Source, msg.Tag);
                     break;
                 case ClientMessageType.NewTask:
-                    StartNewTask(msg.Data);
+                    StartNewTask(e.Source, msg.Data, msg.Tag);
                     break;
                 case ClientMessageType.TimeoutPrevention:
                     // we are preventing a timeout from taking place here, no action is neccessary
@@ -218,18 +198,10 @@ namespace MNP.Server
                     break;
             }
         }
+        #endregion
 
-        private void GetResultFromCache(string p1, byte[] p2)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void StartNewTask(byte[] p)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void _internodeCommunicationsSocket_OnDataReceived(object sender, SocketDataEventArgs e)
+        #region "InternodeSockets"
+        private void internode_OnDataReceived(object sender, SocketDataEventArgs e)
         {
             InterNodeCommunicationMessage msg = InterNodeCommunicationMessageSerialiser.Deserialise(e.Data);
             Console.WriteLine("INCM :: " + msg.MessageType.ToString());
@@ -264,13 +236,13 @@ namespace MNP.Server
                     break;
                 case InterNodeMessageType.FullCacheUpdateReceived:
                     UpdateCacheWithFullUpdate(msg.Data);
+                    GetDataFromNode(e.Source, InterNodeMessageType.FullQueueUpdateSent);
                     break;
                 case InterNodeMessageType.FullQueueUpdateReceived:
                     UpdateQueueWithFullUpdate(msg.Data);
                     break;
                 case InterNodeMessageType.StartUp:
                     GetDataFromNode(e.Source, InterNodeMessageType.FullCacheUpdateSent);
-                    GetDataFromNode(e.Source, InterNodeMessageType.FullQueueUpdateSent);
                     break;
                 default:
                     Console.WriteLine("Internode message received. Default.");
@@ -278,31 +250,19 @@ namespace MNP.Server
             }
 
         }
-
-        private void GetDataFromNode(IPAddress ip, InterNodeMessageType msgType)
-        {
-            if (ip == null)
-            {
-                throw new ArgumentException("ip cannot be null");
-            }
-
-            if (msgType == InterNodeMessageType.FullQueueUpdateSent || msgType == InterNodeMessageType.FullCacheUpdateSent)
-            {
-                InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { MessageType = msgType, IsLocalOnly = true };
-                SendToNode(ip, this.InterNodeCommunicationMessageSerialiser.Serialise(msg));
-            }
-        }
-
-        private void _internodeConnectionSocket_OnClientConnectCompleted(object sender, IPEndPoint e)
+        private void internode_OnClientConnectCompleted(object sender, IPEndPoint e)
         {
             if (e != null)
             {
+                Console.WriteLine("Client connected...");
                 InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { IsLocalOnly = true, MessageType = InterNodeMessageType.StartUp, Tag = e.Address.ToString() };
                 SendToNode(e.Address, this.InterNodeCommunicationMessageSerialiser.Serialise(msg));
             }
         }
+        #endregion
 
-        private void _autoDiscoverySocket_OnDataReceived(object sender, SocketDataEventArgs e)
+        #region "AutoDiscoverySocket"
+        private void autodiscovery_OnDataReceived(object sender, SocketDataEventArgs e)
         {
             // check that we actually want this message type on this interface
             if (e.Type == PacketType.BroadcastUDP)
@@ -319,7 +279,7 @@ namespace MNP.Server
                     case BroadcastMessageType.Startup:
                         Console.WriteLine("Autodiscovery: Client start up -> {0}", msg.IP.Address.ToString());
                         _autoDiscoveryList.Add(msg.IP.Address);
-                        NodeStartup(new IPEndPoint(msg.IP.Address, this.ServerPort));
+                        NodeStartup(new IPEndPoint(msg.IP.Address, this.InternodePort));
                         break;
                     case BroadcastMessageType.Shutdown:
                         Console.WriteLine("Autodiscovery: Client shutdown -> {0}", msg.IP.Address.ToString());
@@ -327,6 +287,60 @@ namespace MNP.Server
                         break;
                 }
             }
+        }
+        #endregion
+        #endregion
+
+        #region "Methods"
+        #region "Process"
+        private void GetResultFromCache(IPAddress source, string tag)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException("source");
+            }
+
+            if (String.IsNullOrEmpty(tag))
+            {
+                throw new ArgumentNullException("tag");
+            }
+
+            if (this.ResultCache.Contains(tag))
+            {
+                SendToNode(source, this.ClientResultMessageSerialiser.Serialise(this.ResultCache[tag]));
+            }
+        }
+
+        private void StartNewTask(IPAddress source, byte[] args, string tag)
+        {
+            // Check to see if the task exists
+            if (this.NodeTask == null)
+            {
+                throw new Exception("There must be a valid task for this action to take place.");
+            }
+
+            if (source == null)
+            {
+                throw new ArgumentNullException("source");
+            }
+
+            if (args == null || args.Length == 0)
+            {
+                throw new ArgumentNullException("args");
+            }
+
+            if (String.IsNullOrEmpty(tag))
+            {
+                throw new ArgumentNullException("tag");
+            }
+
+            this.ProcessQueue.Enqueue(new ClientProcess()
+            {
+                State = QueuedProcessState.Runnable,
+                Source = source,
+                Data = args,
+                Tag = tag
+            }, true);
         }
         #endregion
 
@@ -345,7 +359,7 @@ namespace MNP.Server
 
             // grab a copy of the cache
             CacheProvider<string, ClientResultMessage> temp = this.ResultCache;
-
+            temp.ClearSubscribersNoNotify();
             InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { Data = CacheSerialiser.Serialise(temp), IsLocalOnly = true, MessageType = InterNodeMessageType.FullCacheUpdateReceived };
 
             this.SendToNode(ip, this.InterNodeCommunicationMessageSerialiser.Serialise(msg));
@@ -353,18 +367,15 @@ namespace MNP.Server
 
         private void UpdateCacheWithFullUpdate(byte[] data)
         {
-
             if (data == null || data.Length == 0)
             {
                 throw new ArgumentException("The specified data was not valid", "data");
             }
 
-            // not sure if this is valid or not
             lock (this.ResultCache)
             {
                 this.ResultCache = this.CacheSerialiser.Deserialise(data);
             }
-
         }
 
         private void RemoveFromCache(bool localOnly, string id)
@@ -393,7 +404,7 @@ namespace MNP.Server
             }
         }
 
-        private void AddToCache(bool localOnly, string key, byte[] value)
+        internal void AddToCache(bool localOnly, string key, byte[] value)
         {
             // Sanity check everything first.
             if (String.IsNullOrEmpty(key))
@@ -419,7 +430,7 @@ namespace MNP.Server
                 throw new ArgumentException("The specified ip is not valid", "ip");
             }
 
-            ObservablePriorityQueue<ClientProcess> temp = this.ProcessQueue;
+            IObservableQueue<ClientProcess> temp = this.ProcessQueue;
 
             InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { Data = this.PrioritisedQueueSerialiser.Serialise(temp), IsLocalOnly = true, MessageType = InterNodeMessageType.FullQueueUpdateReceived };
 
@@ -492,6 +503,21 @@ namespace MNP.Server
         }
         #endregion
 
+        #region "Node"
+        private void GetDataFromNode(IPAddress ip, InterNodeMessageType msgType)
+        {
+            if (ip == null)
+            {
+                throw new ArgumentException("ip cannot be null");
+            }
+
+            if (msgType == InterNodeMessageType.FullQueueUpdateSent || msgType == InterNodeMessageType.FullCacheUpdateSent)
+            {
+                InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { MessageType = msgType, IsLocalOnly = true };
+                SendToNode(ip, this.InterNodeCommunicationMessageSerialiser.Serialise(msg));
+            }
+        }
+
         private void NewNodeDiscoveredOnNetwork(IPAddress ip)
         {
             if (ip == null)
@@ -501,7 +527,7 @@ namespace MNP.Server
 
             _autoDiscoveryList.Add(ip);
 
-            NodeStartup(new IPEndPoint(ip, this.ServerPort));
+            NodeStartup(new IPEndPoint(ip, this.InternodePort));
         }
 
         private void NodeStartup(IPEndPoint ipe)
@@ -509,7 +535,7 @@ namespace MNP.Server
             _internodeConnectionSocket.ConnectTo(ipe);
         }
 
-        internal void SendToNode(IPAddress nodeAddress, byte[] data)
+        internal bool SendToNode(IPAddress nodeAddress, byte[] data)
         {
             // prepend the length as we send the data
             byte[] _data = BitConverter.GetBytes(data.Length).Merge(data);
@@ -520,34 +546,12 @@ namespace MNP.Server
                 // test to see if the connection socket has the connection open already
                 if (!_internodeConnectionSocket.SendTo(nodeAddress.ToString(), _data))
                 {
-                    // Should we open a new connection to the specified address? Just throw a exception now
-                    //throw new Exception("The requested node is not known by the existing sockets.");
+                    return false;
                 }
             }
+            return true;
         }
-
         #endregion
-
-        #region "Configuration"
-        private bool LoadConfiguration(String pathToConfig = "")
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// Loads the socket that will be used to communicate with other nodes
-        /// </summary>
-        /// <param name="type"></param>
-        private void LoadServerSocket(String type)
-        { }
-
-        /// <summary>
-        /// Loads the socket that will be used for communication with the clients
-        /// </summary>
-        /// <param name="type"></param>
-        private void LoadClientSocket(String type)
-        { }
         #endregion
     }
 }
-

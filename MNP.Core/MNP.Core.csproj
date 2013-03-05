@@ -45,6 +45,7 @@
     <Compile Include="Classes\ClientProcess.cs" />
     <Compile Include="Classes\Disposable.cs" />
     <Compile Include="Classes\Extensions.cs" />
+    <Compile Include="Classes\Injector.cs" />
     <Compile Include="Classes\ManagedQueue.cs" />
     <Compile Include="Enums\ClientMessageType.cs" />
     <Compile Include="Enums\InterNodeMessageType.cs" />
@@ -56,13 +57,13 @@
     <Compile Include="Classes\ObservableCache.cs" />
     <Compile Include="Classes\ObservablePriorityQueue.cs" />
     <Compile Include="Enums\QueuePriority.cs" />
-    <Compile Include="Interfaces\IBufferManagerProvider.cs" />
     <Compile Include="Classes\CacheProvider.cs" />
     <Compile Include="Interfaces\ILogProvider.cs" />
     <Compile Include="Interfaces\IBroadcastSocket.cs" />
+    <Compile Include="Interfaces\INodeTask.cs" />
     <Compile Include="Interfaces\IPlugin.cs" />
     <Compile Include="Interfaces\IPrioritised.cs" />
-    <Compile Include="Interfaces\IQueue.cs" />
+    <Compile Include="Interfaces\IObservableQueue.cs" />
     <Compile Include="Interfaces\ISerialiser.cs" />
     <Compile Include="Interfaces\ISocket.cs" />
     <Compile Include="Interfaces\IStorageProvider.cs" />

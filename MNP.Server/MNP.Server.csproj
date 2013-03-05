@@ -46,7 +46,6 @@
     <Compile Include="Observers\PrioritisedQueueObserver.cs" />
     <Compile Include="Observers\ResultCacheObserver.cs" />
     <Compile Include="PluginManager.cs" />
-    <Compile Include="Providers\Buffer\DefaultBufferManager.cs" />
     <Compile Include="Providers\Log\DefaultLogProvider.cs" />
     <Compile Include="Providers\Cache\DefaultCache.cs" />
     <Compile Include="Providers\Storage\DefaultStorageProvider.cs" />

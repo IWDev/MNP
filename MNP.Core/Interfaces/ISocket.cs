@@ -24,6 +24,10 @@ namespace MNP.Core
         /// </summary>
         bool AllowAddressReuse { get; set; }
 
+        Int32 Port { get; set; }
+
+        IPAddress BindingAddress { get; set; }
+
         /// <summary>
         /// Send data to a specific address
         /// </summary>
