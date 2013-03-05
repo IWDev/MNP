@@ -33,18 +33,18 @@ namespace MNP.Server
             }
 
             //Prints all the languages that were found into the application directory
-            var i = 0;
-            foreach (var plugin in this.availablePlugins)
-            {
-                Console.WriteLine(plugin.Description);
-                i++;
-            }
-            Console.WriteLine("{0} Plugins have been detected and loaded.",i);
+            //var i = 0;
+            //foreach (var plugin in this.availablePlugins)
+            //{
+            //    Console.WriteLine(plugin.Description);
+            //    i++;
+            //}
+            //Console.WriteLine("{0} Plugins have been detected and loaded.",i);
 
         }
 
-        [ImportMany]
-        IEnumerable<IPlugin> availablePlugins { get; set; }
+        //[ImportMany]
+        //IEnumerable<IPlugin> availablePlugins { get; set; }
 
 
 
