@@ -22,14 +22,11 @@ namespace MNP.Core
         /// </summary>
         public IPAddress Source { get; private set; }
 
-        private SocketDataEventArgs()
-        {}
-
         public SocketDataEventArgs(byte[] data, PacketType type, IPAddress source)
         {
-            this.Data = data;
-            this.Type = type;
-            this.Source = source;
+            Data = data;
+            Type = type;
+            Source = source;
         }
     }
 }

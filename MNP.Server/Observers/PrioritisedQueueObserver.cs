@@ -25,21 +25,21 @@ namespace MNP.Server.Observers
                 throw new ArgumentException("Parent node cannot be null", "parent");
             }
 
-            this.ParentNode = parent;
+            ParentNode = parent;
 
-            this.LogProvider = (logger == null) ? new DefaultLogProvider(LogLevel.Verbose) : logger;
+            LogProvider = logger ?? new DefaultLogProvider(LogLevel.Verbose);
         }
 
         public void OnCompleted()
         {
-            this.LogProvider.Log("Prioritised Queue Observer Completed", "PrioritisedQueueObserver", LogLevel.Verbose);
-            this.ParentNode = null;
-            this.LogProvider = null;
+            LogProvider.Log("Prioritised Queue Observer Completed", "PrioritisedQueueObserver", LogLevel.Verbose);
+            ParentNode = null;
+            LogProvider = null;
         }
 
         public void OnError(Exception error)
         {
-            this.LogProvider.Log(error.Message, "PrioritisedQueueObserver", LogLevel.Verbose);
+            LogProvider.Log(error.Message, "PrioritisedQueueObserver", LogLevel.Verbose);
         }
 
         public async void OnNext(ClientProcess value)
@@ -47,20 +47,20 @@ namespace MNP.Server.Observers
             await Task.Run(() =>
             {
                 // Get the list of nodes
-                List<IPAddress> nodes = this.ParentNode.KnownNodes;
+                List<IPAddress> nodes = ParentNode.KnownNodes;
 
                 // if there are no nodes, there is no point serialising the message
                 if (nodes != null && !value.LocalOnly)
                 {
                     // setup the message before sending
-                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = this.ParentNode.ClientProcessSerialiser.Serialise(value), IsLocalOnly = true, MessageType = InterNodeMessageType.AddToQueue };
+                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = ParentNode.ClientProcessSerialiser.Serialise(value), IsLocalOnly = true, MessageType = InterNodeMessageType.AddToQueue };
 
-                    byte[] data = this.ParentNode.InterNodeCommunicationMessageSerialiser.Serialise(msg);
+                    byte[] data = ParentNode.InterNodeCommunicationMessageSerialiser.Serialise(msg);
 
                     // need to send this to all the other known nodes
                     foreach (var node in nodes)
                     {
-                        this.ParentNode.SendToNode(node, data);
+                        ParentNode.SendToNode(node, data);
                     }
 
                     // be a good boy and clean up after ourselves
@@ -71,8 +71,8 @@ namespace MNP.Server.Observers
             if (!value.LocalOnly)
             {
                 // start the task
-                Task<byte[]> task = this.ParentNode.NodeTask.Execute(value.Data);
-                this.ParentNode.AddToCache(false, value.Tag, await task);
+                Task<byte[]> task = ParentNode.NodeTask.Execute(value.Data);
+                ParentNode.AddToCache(false, value.Tag, await task);
             }
         }
     }

@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MNP.Core
 {
@@ -12,17 +8,17 @@ namespace MNP.Core
         
         public static T[] GetArraySection<T>(this T[] source, Int32 offset, Int32 length)
         {
-            T[] _destinationArray = new T[length];
-            Buffer.BlockCopy(source, offset, _destinationArray, 0, length);
-            return _destinationArray;
+            T[] destinationArray = new T[length];
+            Buffer.BlockCopy(source, offset, destinationArray, 0, length);
+            return destinationArray;
         }
 
         public static T[] Merge<T>(this T[] source, T[] arrayToMerge)
         {
-            T[] _destinationArray = new T[source.Length + arrayToMerge.Length];
-            Buffer.BlockCopy(source, 0, _destinationArray, 0, source.Length);
-            Buffer.BlockCopy(arrayToMerge, 0, _destinationArray, source.Length, arrayToMerge.Length);
-            return _destinationArray;
+            T[] destinationArray = new T[source.Length + arrayToMerge.Length];
+            Buffer.BlockCopy(source, 0, destinationArray, 0, source.Length);
+            Buffer.BlockCopy(arrayToMerge, 0, destinationArray, source.Length, arrayToMerge.Length);
+            return destinationArray;
         }
 
         public static T Execute<T>(Func<T> func, int timeout)

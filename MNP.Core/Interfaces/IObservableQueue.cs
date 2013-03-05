@@ -13,6 +13,7 @@ namespace MNP.Core
         /// Add an element to the Queue
         /// </summary>
         /// <param name="value">The item to add</param>
+        /// <param name="notifySubscribers"></param>
         void Enqueue(T value, bool notifySubscribers);
 
         /// <summary>

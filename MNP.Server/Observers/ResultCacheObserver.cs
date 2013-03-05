@@ -24,21 +24,21 @@ namespace MNP.Server.Observers
                 throw new ArgumentException("Parent node cannot be null", "parent");
             }
 
-            this.ParentNode = parent;
+            ParentNode = parent;
 
-            this.LogProvider = (logger == null) ? new DefaultLogProvider(LogLevel.Verbose) : logger;
+            LogProvider = logger ?? new DefaultLogProvider(LogLevel.Verbose);
         }
 
         public void OnCompleted()
         {
-            this.LogProvider.Log("Result Cache Observer Completed", "Result Cache Observer", LogLevel.Verbose);
-            this.ParentNode = null;
-            this.LogProvider = null;
+            LogProvider.Log("Result Cache Observer Completed", "Result Cache Observer", LogLevel.Verbose);
+            ParentNode = null;
+            LogProvider = null;
         }
 
         public void OnError(Exception error)
         {
-            this.LogProvider.Log(error.Message, "ResultCacheObserver", LogLevel.Verbose);
+            LogProvider.Log(error.Message, "ResultCacheObserver", LogLevel.Verbose);
         }
 
         public void OnNext(ClientResultMessage value)
@@ -46,20 +46,20 @@ namespace MNP.Server.Observers
             Task.Run(() =>
             {
                 // Get the list of nodes
-                List<IPAddress> nodes = this.ParentNode.KnownNodes;
+                List<IPAddress> nodes = ParentNode.KnownNodes;
 
                 // if there are no nodes, there is no point serialising the message
                 if (nodes != null)
                 {
                     // setup the message before sending
-                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = this.ParentNode.ClientResultMessageSerialiser.Serialise(value), IsLocalOnly = true, MessageType = InterNodeMessageType.AddToCache };
+                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = ParentNode.ClientResultMessageSerialiser.Serialise(value), IsLocalOnly = true, MessageType = InterNodeMessageType.AddToCache };
 
-                    byte[] data = this.ParentNode.InterNodeCommunicationMessageSerialiser.Serialise(msg);
+                    byte[] data = ParentNode.InterNodeCommunicationMessageSerialiser.Serialise(msg);
 
                     // need to send this to all the other known nodes
                     foreach (var node in nodes)
                     {
-                        this.ParentNode.SendToNode(node, data);
+                        ParentNode.SendToNode(node, data);
                     }
 
                     // be a good boy and clean up after ourselves

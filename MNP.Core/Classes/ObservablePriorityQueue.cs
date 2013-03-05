@@ -15,7 +15,7 @@ namespace MNP.Core
     {
         #region "IObservable<T> Implementation"
         // A list of the subscribers for the IObservable implementation
-        List<IObserver<T>> _subscribers = new List<IObserver<T>>(10);
+        readonly List<IObserver<T>> _subscribers = new List<IObserver<T>>(10);
 
         #region "Interface specific"
         /// <summary>
@@ -28,7 +28,7 @@ namespace MNP.Core
             // sanity check
             if (observer == null)
             {
-                throw new ArgumentNullException("The observer cannot be null.");
+                throw new ArgumentNullException("observer");
             }
             // Lock the resource before reading/writing (thread-safety)
             lock (_subscribers)
@@ -39,7 +39,7 @@ namespace MNP.Core
                 }
             }
             // Return the unsubscribe method
-            return new Disposable(() => this.Unsubscribe(observer));
+            return new Disposable(() => Unsubscribe(observer));
         }
         #endregion
 
@@ -52,7 +52,7 @@ namespace MNP.Core
             // Sanity check
             if (observer == null)
             {
-                throw new ArgumentNullException("The observer cannot be null.");
+                throw new ArgumentNullException("observer");
             }
 
             // make sure the observer knows that they should finish with the subscription
@@ -80,6 +80,7 @@ namespace MNP.Core
         /// Add a value to the queue
         /// </summary>
         /// <param name="value">The value to add to the queue</param>
+        /// <param name="notifySubscribers"></param>
         public void Enqueue(T value, bool notifySubscribers)
         {
             // Sanity check
@@ -121,7 +122,7 @@ namespace MNP.Core
             {
                 if (_data.Count > 0) // this must be inside the lock otherwise it might be modified by the time we read from the list
                 {
-                    var result = _data.Where(element => element.State == Enums.QueuedProcessState.Runnable).OrderByDescending(element => element.Priority).ThenBy(element => element.TimeStamp).First();
+                    var result = _data.Where(element => element.State == QueuedProcessState.Runnable).OrderByDescending(element => element.Priority).ThenBy(element => element.TimeStamp).First();
                     _data.Remove(result);
                     return result;
                 }
@@ -141,7 +142,7 @@ namespace MNP.Core
                 if (_data.Count > 0) // this must be inside the lock otherwise it might be modified by the time we read from the list
                 {
 
-                    return _data.Where(element => element.State == Enums.QueuedProcessState.Runnable).OrderByDescending(element => element.Priority).ThenBy(element => element.TimeStamp).First();
+                    return _data.Where(element => element.State == QueuedProcessState.Runnable).OrderByDescending(element => element.Priority).ThenBy(element => element.TimeStamp).First();
                 }
             }
             return default(T);

@@ -1,4 +1,5 @@
-﻿using MNP.Core;
+﻿using System.Globalization;
+using MNP.Core;
 using System;
 using System.Diagnostics;
 
@@ -18,21 +19,17 @@ namespace MNP.Server.Providers
         public LogLevel LoggingLevel { get; private set; }
 
         #region "Constructors"
-        public DefaultLogProvider() : this(LogLevel.None, null) { }
-
-        public DefaultLogProvider(LogLevel logLevel) : this(logLevel, null) { }
-
-        public DefaultLogProvider(LogLevel logLevel, IStorageProvider storage)
+        public DefaultLogProvider(LogLevel logLevel = LogLevel.None, IStorageProvider storage = null)
         {
-            this.LoggingLevel = logLevel;
-            _storageProvider = (storage == null) ? new DefaultStorageProvider() : storage;
+            LoggingLevel = logLevel;
+            _storageProvider = storage ?? new DefaultStorageProvider();
         }
         #endregion
 
         /// <summary>
         /// The underlying storage provider.
         /// </summary>
-        public IStorageProvider StorageProvide
+        public IStorageProvider StorageProvider
         {
             get { return _storageProvider; }
             private set
@@ -63,8 +60,8 @@ namespace MNP.Server.Providers
             if (AllowedToLog(loggingLevel))
             {
                 // this will do for now, add a proper implementation later.
-                Debug.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(), source, message);
-                Console.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(), source, message);
+                Debug.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(CultureInfo.InvariantCulture), source, message);
+                Console.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(CultureInfo.InvariantCulture), source, message);
             }
         }
         
@@ -75,15 +72,11 @@ namespace MNP.Server.Providers
         /// <returns></returns>
         private bool AllowedToLog(LogLevel lvl)
         {
-            if (this.LoggingLevel == LogLevel.None)
+            if (LoggingLevel == LogLevel.None)
             {
                 return false;
             }
-            else if ((this.LoggingLevel == LogLevel.Minimal && lvl == LogLevel.Minimal) || (this.LoggingLevel == LogLevel.Verbose))
-            {
-                return true;   
-            }
-            return false;
+            return (LoggingLevel == LogLevel.Minimal && lvl == LogLevel.Minimal) || (LoggingLevel == LogLevel.Verbose);
         }
     }
 }

@@ -6,7 +6,7 @@ namespace MNP.Core.Serialisers
 {
     public sealed class DefaultSerialiser<T> : ISerialiser<T, byte[]> where T : class
     {
-        private readonly BinaryFormatter formatter = new BinaryFormatter();
+        private readonly BinaryFormatter _formatter = new BinaryFormatter();
         
         public byte[] Serialise(T source)
         {
@@ -17,7 +17,7 @@ namespace MNP.Core.Serialisers
 
             using (MemoryStream ms = new MemoryStream())
             {
-                formatter.Serialize(ms, source);
+                _formatter.Serialize(ms, source);
                 return ms.ToArray();
             }
         }
@@ -33,7 +33,7 @@ namespace MNP.Core.Serialisers
             {
                 memStream.Write(source, 0, source.Length);
                 memStream.Seek(0, SeekOrigin.Begin);
-                return (T)formatter.Deserialize(memStream);
+                return (T)_formatter.Deserialize(memStream);
             }
         }
     }

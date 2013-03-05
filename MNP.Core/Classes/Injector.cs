@@ -12,7 +12,9 @@ namespace MNP.Core
         #region "Singleton Pattern"
         private static class SingletonHolder
         {
+// ReSharper disable InconsistentNaming
             internal static readonly Injector instance = new Injector();
+// ReSharper restore InconsistentNaming
             // Empty static constructor - forces laziness!
             static SingletonHolder() { }
         }
@@ -21,7 +23,7 @@ namespace MNP.Core
         #endregion
 
         public ILogProvider LogProvider { get; set; }
-        private readonly Dictionary<Type, Func<object>> dependancies = new Dictionary<Type, Func<object>>();
+        private readonly Dictionary<Type, Func<object>> _dependancies = new Dictionary<Type, Func<object>>();
 
         private Injector()
         {
@@ -29,28 +31,24 @@ namespace MNP.Core
 
         public void Bind<TBase, TDerived>() where TDerived : TBase
         {
-            this.dependancies[typeof(TBase)] = () => ResolveByType(typeof(TDerived));
+            _dependancies[typeof(TBase)] = () => ResolveByType(typeof(TDerived));
         }
 
         public void Bind<T>(T instance)
         {
-            this.dependancies[typeof(T)] = () => instance;
+            _dependancies[typeof(T)] = () => instance;
         }
 
         public T Resolve<T>()
         {
-            this.LogProvider.Log(String.Format("Resolving {0}...", typeof(T).Name), "Injector.Resolve", LogLevel.Verbose);
+            LogProvider.Log(String.Format("Resolving {0}...", typeof(T).Name), "Injector.Resolve", LogLevel.Verbose);
             return (T)Resolve(typeof(T));
         }
 
-        public object Resolve(Type type)
+        private object Resolve(Type type)
         {
             Func<object> provider;
-            if (this.dependancies.TryGetValue(type, out provider))
-            {
-                return provider.Invoke();
-            }
-            return ResolveByType(type);
+            return _dependancies.TryGetValue(type, out provider) ? provider.Invoke() : ResolveByType(type);
         }
 
         private object ResolveByType(Type type)
@@ -72,7 +70,7 @@ namespace MNP.Core
 
         public void Clear()
         {
-            dependancies.Clear();
+            _dependancies.Clear();
         }
     }
 }

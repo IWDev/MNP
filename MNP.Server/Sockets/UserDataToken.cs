@@ -10,7 +10,7 @@ namespace MNP.Server
 
         internal UserDataToken(EndPoint endpoint)
         {
-            this.Endpoint = (IPEndPoint)endpoint;
+            Endpoint = (IPEndPoint)endpoint;
         }
 
         internal IPEndPoint Endpoint { get; private set; }

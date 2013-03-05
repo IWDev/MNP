@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MNP.Core
 {
@@ -14,19 +11,16 @@ namespace MNP.Core
     public sealed class ManagedQueue<T> : IManagedResource<T>
     {
         #region "Constructors"
-        private ManagedQueue() { }
-        public ManagedQueue(Int32 capacity) : this(capacity, false, null) { }
-        public ManagedQueue(Int32 capacity, bool fillQueue) : this(capacity, fillQueue, null) { }
-        public ManagedQueue(Int32 capacity, bool fillQueue, Queue<T> queue)
+        public ManagedQueue(Int32 capacity = 400, bool fillQueue = false, Queue<T> queue = null)
         {
-            this.Capacity = capacity;
-            _queue = (queue == null) ? new Queue<T>(capacity) : queue;
-            _restrictor = new SemaphoreSlim((fillQueue) ? this.Capacity : 0, this.Capacity);
+            Capacity = capacity;
+            _queue = queue ?? new Queue<T>(capacity);
+            _restrictor = new SemaphoreSlim((fillQueue) ? Capacity : 0, Capacity);
 
             if (fillQueue)
             {
                 // Setup the queue with default values
-                for (Int32 i = 0; i < this.Capacity; i++)
+                for (Int32 i = 0; i < Capacity; i++)
                 {
                     Insert(default(T));
                 }
@@ -40,10 +34,10 @@ namespace MNP.Core
         public Int32 Capacity { get; private set; }
 
         // The queue to hold the items
-        private Queue<T> _queue;
+        private readonly Queue<T> _queue;
 
         // The SemaphoreSlim to restrict access to the queue
-        private SemaphoreSlim _restrictor;
+        private readonly SemaphoreSlim _restrictor;
 
         /// <summary>
         /// Take the next resource available from the queue. This is a blocking operation if capacity is reached.

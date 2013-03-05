@@ -11,19 +11,16 @@ namespace MNP.Core
     public sealed class ManagedStack<T> : IManagedResource<T>
     {
         #region "Constructors"
-        private ManagedStack() { }
-        public ManagedStack(Int32 capacity) : this(capacity, false, null) { }
-        public ManagedStack(Int32 capacity, bool fillStack) : this(capacity, fillStack, null) { }
-        public ManagedStack(Int32 capacity, bool fillStack, Stack<T> stack)
+        public ManagedStack(Int32 capacity = 400, bool fillStack = false, Stack<T> stack = null)
         {
-            this.Capacity = capacity;
-            _stack = (stack == null) ? new Stack<T>(capacity) : stack;
-            _restrictor = new SemaphoreSlim((fillStack) ? this.Capacity : 0, this.Capacity);
+            Capacity = capacity;
+            _stack = stack ?? new Stack<T>(capacity);
+            _restrictor = new SemaphoreSlim((fillStack) ? Capacity : 0, Capacity);
 
             if (fillStack)
             {
                 // Setup the stack with default values
-                for (Int32 i = 0; i < this.Capacity; i++)
+                for (Int32 i = 0; i < Capacity; i++)
                 {
                     Insert(default(T));
                 }
@@ -37,10 +34,10 @@ namespace MNP.Core
         public Int32 Capacity { get; private set; }
 
         // The stack to hold the items
-        private Stack<T> _stack;
+        private readonly Stack<T> _stack;
 
         // The SemaphoreSlim to restrict access to the stack
-        private SemaphoreSlim _restrictor;
+        private readonly SemaphoreSlim _restrictor;
 
         /// <summary>
         /// Take the next resource available from the stack. This is a blocking operation if capacity is reached.

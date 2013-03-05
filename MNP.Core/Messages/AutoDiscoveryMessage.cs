@@ -11,13 +11,13 @@ namespace MNP.Core.Messages
 
         public AutoDiscoveryMessage()
         {
-            this.MessageType = BroadcastMessageType.None;
+            MessageType = BroadcastMessageType.None;
         }
 
         public AutoDiscoveryMessage(BroadcastMessageType msgType, EndPoint ip)
         {
-            this.MessageType = msgType;
-            this.IP = (IPEndPoint)ip;
+            MessageType = msgType;
+            IP = (IPEndPoint)ip;
         }
 
     }

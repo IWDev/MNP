@@ -6,23 +6,24 @@ namespace MNP.Core
     /// <summary>
     /// A simple generic cache that supports subscribtions.
     /// </summary>
-    /// <typeparam name="T">Must be a class.</typeparam>
+    /// <typeparam name="TKey">Must be a class.</typeparam>
+    /// <typeparam name="TValue">The type of the value in the cache</typeparam>
     [Serializable]
-    public class ObservableCache<T, Y> : IObservable<Y>, IDisposable where T : class
+    public class ObservableCache<TKey, TValue> : IObservable<TValue>, IDisposable where TKey : class
     {
         #region "Cache Implementation"
 
         /// <summary>
         /// The main object that holds the cache entries.
         /// </summary>
-        Dictionary<T, Y> _cache = new Dictionary<T, Y>();
+        Dictionary<TKey, TValue> _cache = new Dictionary<TKey, TValue>();
 
         /// <summary>
         /// Gets or sets an entry to the cache. Subscribers are notified if a new entry is added.
         /// </summary>
         /// <param name="entry">The name of the cache entry to retrieve.</param>
         /// <returns>A valid entry or null</returns>
-        public Y this[T entry]
+        public TValue this[TKey entry]
         {
             get
             {
@@ -48,7 +49,7 @@ namespace MNP.Core
         /// </summary>
         /// <param name="entry">The name of the cache entry.</param>
         /// <param name="value">The value to add to the cache (Of type T).</param>
-        public void AddNewEntry(T entry, Y value)
+        public void AddNewEntry(TKey entry, TValue value)
         {
             AddNewEntry(entry, value, false);
         }
@@ -59,7 +60,7 @@ namespace MNP.Core
         /// <param name="entry">The name of the cache entry.</param>
         /// <param name="value">The value to add to the cache (Of type T).</param>
         /// <param name="overwriteExisting">Determines whether or not to overwrite the existing entry or not. This does not notify subscribers.</param>
-        public void AddNewEntry(T entry, Y value, Boolean overwriteExisting)
+        public void AddNewEntry(TKey entry, TValue value, Boolean overwriteExisting)
         {
             lock (_cache)
             {
@@ -81,7 +82,7 @@ namespace MNP.Core
                     lock (_subscribers)
                     {
                         // now that the entry has been added, notify everyone
-                        foreach (IObserver<Y> subscriber in _subscribers)
+                        foreach (IObserver<TValue> subscriber in _subscribers)
                         {
                             subscriber.OnNext(value);
                         }
@@ -94,7 +95,7 @@ namespace MNP.Core
         /// Removes the specified entry from the cache.
         /// </summary>
         /// <param name="entry">The name of the entry to remove.</param>
-        public void RemoveEntry(T entry)
+        public void RemoveEntry(TKey entry)
         {
             lock (_cache)
             {
@@ -128,7 +129,7 @@ namespace MNP.Core
             }
         }
 
-        public bool Contains(T key)
+        public bool Contains(TKey key)
         {
             lock (_cache)
             {
@@ -161,14 +162,14 @@ namespace MNP.Core
         /// <summary>
         /// The list of all the subscribers.
         /// </summary>
-        List<IObserver<Y>> _subscribers = new List<IObserver<Y>>();
+        List<IObserver<TValue>> _subscribers = new List<IObserver<TValue>>();
 
         /// <summary>
         /// Allows Observers to watch for new cache entries.
         /// </summary>
         /// <param name="observer">The observer to add.</param>
         /// <returns></returns>
-        public IDisposable Subscribe(IObserver<Y> observer)
+        public IDisposable Subscribe(IObserver<TValue> observer)
         {
             if (observer == null)
             {
@@ -185,7 +186,7 @@ namespace MNP.Core
 
             return new Disposable(() =>
             {
-                this.Unsubscribe(observer);
+                Unsubscribe(observer);
             });
         }
         #endregion
@@ -194,7 +195,7 @@ namespace MNP.Core
         /// Removes a subscribe from the chain.
         /// </summary>
         /// <param name="observer">The subscriber to remove.</param>
-        public void Unsubscribe(IObserver<Y> observer)
+        public void Unsubscribe(IObserver<TValue> observer)
         {
             if (observer == null)
             {

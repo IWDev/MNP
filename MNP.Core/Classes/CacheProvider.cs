@@ -8,24 +8,13 @@ namespace MNP.Core
     /// <summary>
     /// Provides a base class for a subscribable local cache
     /// </summary>
-    /// <typeparam name="T">The key type</typeparam>
-    /// <typeparam name="Y">The value type</typeparam>
+    /// <typeparam name="TKey">The key type</typeparam>
+    /// <typeparam name="TValue">The value type</typeparam>
     [Serializable]
-    public abstract class CacheProvider<T, Y> : IObservable<Y>, IDisposable where T : class
+    public abstract class CacheProvider<TKey, TValue> : IObservable<TValue>, IDisposable where TKey : class
     {
         // Maintains a list of subscribers from which we can notify about changes to the cache
-        private readonly List<IObserver<Y>> _subscribers = new List<IObserver<Y>>(3);
-
-        /// <summary>
-        /// Write to the local cache and notify subscribers that we have a new entry.
-        /// </summary>
-        /// <param name="key">The key</param>
-        /// <param name="data">The value</param>
-        public void Write(T key, Y data)
-        {
-            // call the main method
-            Write(key, data, false);
-        }
+        private readonly List<IObserver<TValue>> _subscribers = new List<IObserver<TValue>>(3);
 
         /// <summary>
         /// Write to the local cache and notify subscribers that we have a new entry. When overriding this method, ensure NotifySubscribers is called when addToLocalCacheOnly is false.
@@ -33,21 +22,21 @@ namespace MNP.Core
         /// <param name="key">The key</param>
         /// <param name="data">The value</param>
         /// <param name="addToLocalCacheOnly">Determins whether to add to the local cache only</param>
-        public abstract void Write(T key, Y data, bool addToLocalCacheOnly);
+        public abstract void Write(TKey key, TValue data, bool addToLocalCacheOnly = false);
 
         /// <summary>
         /// Get/Set a specific entry in the cache
         /// </summary>
         /// <param name="key">The key</param>
         /// <returns>The value as type Y if exists. Else a KeyNotFoundException should be thrown.</returns>
-        public abstract Y this[T key] { get; set; }
+        public abstract TValue this[TKey key] { get; set; }
 
         /// <summary>
         /// Determins whether or not a key exists
         /// </summary>
         /// <param name="key">The key</param>
         /// <returns>A boolean determining whether the key exists or not</returns>
-        public abstract bool Contains(T key);
+        public abstract bool Contains(TKey key);
 
         /// <summary>
         /// Used to clean up resources
@@ -59,13 +48,13 @@ namespace MNP.Core
         /// </summary>
         /// <param name="criteria"></param>
         /// <param name="notifySubscribers"></param>
-        public abstract void Remove(T criteria, bool notifySubscribers);
+        public abstract void Remove(TKey criteria, bool notifySubscribers);
 
         /// <summary>
         /// Notifies subscribers of a new entry of a task. Only parent classes can call this method.
         /// </summary>
         /// <param name="value">The entry that was added to the cache</param>
-        protected Task NotifySubscribers(Y value)
+        protected Task NotifySubscribers(TValue value)
         {
             // Potentially a blocking operation, so return a new running task
             // Task.Run(someAction) is the same as Task.Factory.StartNew(someAction, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -75,7 +64,7 @@ namespace MNP.Core
                     // we need to make sure that we are locking the list (thread safety)
                     lock (_subscribers)
                     {
-                        foreach (IObserver<Y> ob in _subscribers)
+                        foreach (IObserver<TValue> ob in _subscribers)
                         {
                             ob.OnNext(value);
                         }
@@ -88,7 +77,7 @@ namespace MNP.Core
         /// </summary>
         /// <param name="observer"></param>
         /// <returns></returns>
-        public IDisposable Subscribe(IObserver<Y> observer)
+        public IDisposable Subscribe(IObserver<TValue> observer)
         {
             // we need to make sure that we are locking the list (thread safety)
             lock (_subscribers)
@@ -97,14 +86,14 @@ namespace MNP.Core
             }
 
             // return a new disposable which will clean up the resources when finished.
-            return new Disposable(() => this.Unsubscribe(observer));
+            return new Disposable(() => Unsubscribe(observer));
         }
 
         /// <summary>
         /// Unsubscribe a specific observer.
         /// </summary>
         /// <param name="observer"></param>
-        public void Unsubscribe(IObserver<Y> observer)
+        private void Unsubscribe(IObserver<TValue> observer)
         {
             // we need to make sure that we are locking the list (thread safety)
             lock (_subscribers)
@@ -137,7 +126,7 @@ namespace MNP.Core
         protected void ClearSubscribers()
         {
             // Trigger the OnCompleted event for each subscriber
-            foreach (IObserver<Y> observer in _subscribers)
+            foreach (IObserver<TValue> observer in _subscribers)
             {
                 observer.OnCompleted();
             }

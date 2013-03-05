@@ -1,5 +1,4 @@
-﻿using System;
-namespace MNP.Core
+﻿namespace MNP.Core
 {
     /// <summary>
     /// Provides the methods needed to a ManagedResource. Resources should be restricted via a Semaphore or similar.

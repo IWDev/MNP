@@ -1,6 +1,5 @@
 ﻿using MNP.Core;
 using MNP.Core.Messages;
-using MNP.Server.Providers;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -15,18 +14,18 @@ namespace MNP.Server
     {
         #region "Private Variables"
         private Socket _socket;
-        private ManagedStack<byte[]> _buffers = new ManagedStack<byte[]>(400, false);
-        private ManagedStack<SocketAsyncEventArgs> _saeas = new ManagedStack<SocketAsyncEventArgs>(400, false);
-        private ManagedStack<byte[]> _tempBuffers = new ManagedStack<byte[]>(400, false);
+        private readonly ManagedStack<byte[]> _buffers = new ManagedStack<byte[]>();
+        private readonly ManagedStack<SocketAsyncEventArgs> _saeas = new ManagedStack<SocketAsyncEventArgs>();
+        private readonly ManagedStack<byte[]> _tempBuffers = new ManagedStack<byte[]>();
         private PacketType _type = PacketType.UDP;
         #endregion
 
         #region "Public Properties"
         public Int32 Port { get; set; }
-        public Int32 MessagePrefixLength { get; set; }
+        private Int32 MessagePrefixLength { get; set; }
         public IPAddress BindingAddress { get; set; }
-        public IPAddress BroadcastSourceAddress { get { return this.BindingAddress; } }
-        public ILogProvider LogProvider { get; private set; }
+        public IPAddress BroadcastSourceAddress { get { return BindingAddress; } }
+        private ILogProvider LogProvider { get; set; }
         public bool AllowAddressReuse { get; set; }
         public bool UseBroadcasting { get; set; }
         #endregion
@@ -40,18 +39,18 @@ namespace MNP.Server
                 throw new ArgumentNullException("logger");
             }
 
-            this.LogProvider = logger;
+            LogProvider = logger;
 
             // use a default message prefix if not set
-            if (this.MessagePrefixLength <= 0)
+            if (MessagePrefixLength <= 0)
             {
-                this.MessagePrefixLength = 4;
+                MessagePrefixLength = 4;
             }
 
             // fill the temporary buffers ready
             for (Int32 i = 0; i < 400; i++)
             {
-                _tempBuffers.Insert(new byte[this.MessagePrefixLength]);
+                _tempBuffers.Insert(new byte[MessagePrefixLength]);
                 _buffers.Insert(new byte[512]);
                 _saeas.Insert(new SocketAsyncEventArgs());
             }
@@ -68,7 +67,7 @@ namespace MNP.Server
             byte[] buff = _buffers.TakeNext();
             args.SetBuffer(buff, 0, buff.Length);
             args.Completed += PacketReceived;
-            args.RemoteEndPoint = new IPEndPoint(this.BindingAddress, this.Port);
+            args.RemoteEndPoint = new IPEndPoint(BindingAddress, Port);
 
             try
             {
@@ -106,15 +105,15 @@ namespace MNP.Server
             if (e.BytesTransferred <= MessagePrefixLength)
             {
                 // Error condition, empty packet
-                this.LogProvider.Log(String.Format("Empty packet received from {0}. Discarding packet.", e.ReceiveMessageFromPacketInfo.Address.ToString()), "UDPSocket.OnPacketReceived", LogLevel.Minimal);
+                LogProvider.Log(String.Format("Empty packet received from {0}. Discarding packet.", e.ReceiveMessageFromPacketInfo.Address), "UDPSocket.OnPacketReceived", LogLevel.Minimal);
                 ReleaseArgs(e);
                 return;
             }
 
             // Make sure that we aren't the source of the message.
-            if (e.ReceiveMessageFromPacketInfo.Address == ((IPEndPoint)_socket.LocalEndPoint).Address)
+            if (e.ReceiveMessageFromPacketInfo.Address.Equals(((IPEndPoint)_socket.LocalEndPoint).Address))
             {
-                this.LogProvider.Log("Received packet from this node. Disregarding.", "UDPSocket.OnPacketReceived", LogLevel.Verbose);
+                LogProvider.Log("Received packet from this node. Disregarding.", "UDPSocket.OnPacketReceived", LogLevel.Verbose);
                 ReleaseArgs(e);
                 return;
             }
@@ -125,7 +124,7 @@ namespace MNP.Server
             Int32 messageLength = BitConverter.ToInt32(arrPrefix, 0);
 
             // clear and return the buffer asap
-            Array.Clear(arrPrefix, 0, this.MessagePrefixLength);
+            Array.Clear(arrPrefix, 0, MessagePrefixLength);
             _tempBuffers.Insert(arrPrefix);
 
             // the number of bytes remaining to store
@@ -133,7 +132,7 @@ namespace MNP.Server
 
             if (bytesToProcess < messageLength)
             {
-                this.LogProvider.Log(String.Format("Missing data from {0}. Discarding packet.", e.ReceiveMessageFromPacketInfo.Address.ToString()), "UDPSocket.OnPacketReceived", LogLevel.Minimal);
+                LogProvider.Log(String.Format("Missing data from {0}. Discarding packet.", e.ReceiveMessageFromPacketInfo.Address), "UDPSocket.OnPacketReceived", LogLevel.Minimal);
                 ReleaseArgs(e);
                 return;
             }
@@ -168,30 +167,30 @@ namespace MNP.Server
         #region "ISocket implicit implementation"
         public void Start()
         {
-            if (this.UseBroadcasting && this.BindingAddress == IPAddress.Any)
+            if (UseBroadcasting && BindingAddress.Equals(IPAddress.Any))
             {
                 throw new NotSupportedException("Broadcasting can only be used on a specific interface. Please set the Server Binding Address properly.");
             }
 
-            this.LogProvider.Log("Starting. Creating socket", "UDPSocket.Start", LogLevel.Verbose);
+            LogProvider.Log("Starting. Creating socket", "UDPSocket.Start", LogLevel.Verbose);
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, this.AllowAddressReuse ? 1 : 0);
-            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, this.UseBroadcasting ? 1 : 0);
-            _socket.Bind(new IPEndPoint(this.BindingAddress, this.Port));
+            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, AllowAddressReuse ? 1 : 0);
+            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, UseBroadcasting ? 1 : 0);
+            _socket.Bind(new IPEndPoint(BindingAddress, Port));
             _socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
 
-            if (this.UseBroadcasting)
+            if (UseBroadcasting)
             {
                 _type = PacketType.BroadcastUDP;
             }
 
             // use a default message prefix
-            this.MessagePrefixLength = 4;
+            MessagePrefixLength = 4;
 
             // begin receiving packets
             Receive();
 
-            this.LogProvider.Log("Socket created. Listening for packets", "UDPSocket.Start", LogLevel.Verbose);
+            LogProvider.Log("Socket created. Listening for packets", "UDPSocket.Start", LogLevel.Verbose);
         }
 
         public void Stop()
@@ -200,17 +199,17 @@ namespace MNP.Server
             try
             {
                 _socket.Shutdown(SocketShutdown.Both);
-                this.LogProvider.Log("Clean socket shutdown", "TCPSocket.CloseSocket", LogLevel.Verbose);
+                LogProvider.Log("Clean socket shutdown", "TCPSocket.CloseSocket", LogLevel.Verbose);
             }
             // throws if socket was already closed
             catch (Exception ex)
             {
-                this.LogProvider.Log("Error closing socket - " + ex.Message, "TCPSocket.CloseSocket", LogLevel.Minimal);
+                LogProvider.Log("Error closing socket - " + ex.Message, "TCPSocket.CloseSocket", LogLevel.Minimal);
             }
 
             // Close the socket, which calls Dispose internally
             _socket.Close();
-            this.LogProvider.Log("Socket closed", "TCPSocket.CloseSocket", LogLevel.Verbose);
+            LogProvider.Log("Socket closed", "TCPSocket.CloseSocket", LogLevel.Verbose);
         }
 
         public bool SendTo(string address, byte[] data)
@@ -234,7 +233,7 @@ namespace MNP.Server
             e.SetBuffer(data, 0, data.Length);
 
             // Set the end point
-            e.RemoteEndPoint = new IPEndPoint(ip, this.Port);
+            e.RemoteEndPoint = new IPEndPoint(ip, Port);
 
             // send the data
             _socket.SendAsync(e);
@@ -274,7 +273,7 @@ namespace MNP.Server
             byte[] data = BitConverter.GetBytes(temp.Length).Merge(temp);
             // send the data
             UdpClient cli = new UdpClient();
-            cli.Send(data, data.Length, new IPEndPoint(IPAddress.Broadcast, this.Port));
+            cli.Send(data, data.Length, new IPEndPoint(IPAddress.Broadcast, Port));
             
         }
         #endregion

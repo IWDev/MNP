@@ -7,20 +7,20 @@ namespace MNP.Server.Providers
     /// <summary>
     /// Provides a basic implementation of a caching system
     /// </summary>
-    /// <typeparam name="T">The key</typeparam>
-    /// <typeparam name="Y">The value</typeparam>
+    /// <typeparam name="TKey">The key</typeparam>
+    /// <typeparam name="TValue">The value</typeparam>
     [Serializable]
-    public sealed class DefaultCache<T, Y> : CacheProvider<T, Y> where T : class
+    public sealed class DefaultCache<TKey, TValue> : CacheProvider<TKey, TValue> where TKey : class
     {
         // hold the data here
-        private readonly ObservableCache<T, Y> _cache = new ObservableCache<T, Y>();
+        private readonly ObservableCache<TKey, TValue> _cache = new ObservableCache<TKey, TValue>();
 
         /// <summary>
         /// Indexer property
         /// </summary>
         /// <param name="key">The key to search for.</param>
         /// <returns>The value if found by the key, else a KeyNotFoundException is thrown</returns>
-        public override Y this[T key]
+        public override TValue this[TKey key]
         {
             get
             {
@@ -41,7 +41,7 @@ namespace MNP.Server.Providers
         /// </summary>
         /// <param name="key">The key to check</param>
         /// <returns>A bool stating whether the key exists or not</returns>
-        public override bool Contains(T key)
+        public override bool Contains(TKey key)
         {
             return _cache.Contains(key);
         }
@@ -52,7 +52,7 @@ namespace MNP.Server.Providers
         /// <param name="key">The key</param>
         /// <param name="data">The data to store in the cache</param>
         /// <param name="addToLocalCacheOnly">Whether to add the key to the local cache only or notify subscribers.</param>
-        public override void Write(T key, Y data, bool addToLocalCacheOnly = false)
+        public override void Write(TKey key, TValue data, bool addToLocalCacheOnly = false)
         {
             // add the entry to our cache regardless
             _cache.AddNewEntry(key, data);
@@ -60,11 +60,11 @@ namespace MNP.Server.Providers
             // if we are only adding to the local cache, we do not need to notify subscribers
             if (!addToLocalCacheOnly)
             {
-                this.NotifySubscribers(data);
+                NotifySubscribers(data);
             }
         }
 
-        public override void Remove(T criteria, bool notifySubscribers)
+        public override void Remove(TKey criteria, bool notifySubscribers)
         {
             _cache.RemoveEntry(criteria);
         }

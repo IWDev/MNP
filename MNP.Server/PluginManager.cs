@@ -1,10 +1,6 @@
-﻿using MNP.Core;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
-using System.Linq;
-using System.Text;
 
 namespace MNP.Server
 {
@@ -34,7 +30,7 @@ namespace MNP.Server
 
             //Prints all the languages that were found into the application directory
             //var i = 0;
-            //foreach (var plugin in this.availablePlugins)
+            //foreach (var plugin in availablePlugins)
             //{
             //    Console.WriteLine(plugin.Description);
             //    i++;

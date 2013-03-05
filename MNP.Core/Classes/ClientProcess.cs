@@ -19,8 +19,8 @@ namespace MNP.Core.Classes
 
         public ClientProcess()
         {
-            this.TimeStamp = DateTime.UtcNow;
-            this.Priority = QueuePriority.Normal;
+            TimeStamp = DateTime.UtcNow;
+            Priority = QueuePriority.Normal;
         }
 
         public string Tag { get; set; }
