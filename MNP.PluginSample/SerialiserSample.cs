@@ -4,7 +4,8 @@ using MNP.Core;
 
 namespace MNP.PluginSample
 {
-    [Export(typeof(ISerialiser<T,Y>))]
+#warning "Disabled the line below as cannot export generic interface through MEF"
+    //[Export(typeof(ISerialiser<T, Y>))]
     public sealed class SerialiserSample<T,Y> : ISerialiser<T, Y>
     {
         public Y Serialise(T source)

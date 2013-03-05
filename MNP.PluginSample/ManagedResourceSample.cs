@@ -4,7 +4,8 @@ using MNP.Core;
 
 namespace MNP.PluginSample
 {
-    [Export(typeof(IManagedResource<T>))]
+#warning "Disabled the line below as cannot export generic interface through MEF"
+    //[Export(typeof(IManagedResource<T>))]
     public sealed class ManagedResourceSample<T> : IManagedResource<T>
     {
         public int Capacity

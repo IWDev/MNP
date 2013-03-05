@@ -40,8 +40,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="BroadcastSocketSample.cs" />
+    <Compile Include="LogProviderSample.cs" />
+    <Compile Include="ManagedResourceSample.cs" />
+    <Compile Include="NodeTaskSample.cs" />
+    <Compile Include="ObservableQueueSample.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SerialiserSample.cs" />
+    <Compile Include="SocketSample.cs" />
+    <Compile Include="StorageProviderSample.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MNP.Core\MNP.Core.csproj">

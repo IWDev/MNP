@@ -5,7 +5,8 @@ using MNP.Core.Enums;
 
 namespace MNP.PluginSample
 {
-    [Export(typeof(IObservableQueue<T>))]
+#warning "Disabled the line below as cannot export generic interface through MEF"
+    //[Export(typeof(IObservableQueue<T>))]
     public sealed class ObservableQueueSample<T> : IObservableQueue<T>
     {
         public void Enqueue(T value, bool notifySubscribers)
