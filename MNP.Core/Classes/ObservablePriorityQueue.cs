@@ -11,7 +11,7 @@ namespace MNP.Core
     /// </summary>
     /// <typeparam name="T">The IPrioritised type that the queue should form around</typeparam>
     [Serializable]
-    public sealed class ObservablePriorityQueue<T> : IObservableQueue<T>, IObservable<T> where T : IPrioritised
+    public sealed class ObservablePriorityQueue<T> : IObservableQueue<T>, IObservable<T> where T : class, IPrioritised
     {
         #region "IObservable<T> Implementation"
         // A list of the subscribers for the IObservable implementation
