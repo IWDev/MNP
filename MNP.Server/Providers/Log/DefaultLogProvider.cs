@@ -11,12 +11,12 @@ namespace MNP.Server.Providers
     public sealed class DefaultLogProvider : ILogProvider
     {
         // The actual underlying storage provider
-        private IStorageProvider _storageProvider;
+        private readonly IStorageProvider _storageProvider;
 
         /// <summary>
         /// The level of logging to obtain
         /// </summary>
-        public LogLevel LoggingLevel { get; private set; }
+        private LogLevel LoggingLevel { get; set; }
 
         #region "Constructors"
         public DefaultLogProvider(LogLevel logLevel = LogLevel.None, IStorageProvider storage = null)
@@ -32,17 +32,6 @@ namespace MNP.Server.Providers
         public IStorageProvider StorageProvider
         {
             get { return _storageProvider; }
-            private set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentException("StorageProvider cannot be null");
-                }
-                else
-                {
-                    _storageProvider = value;
-                }
-            }
         }
         
         /// <summary>
@@ -53,14 +42,25 @@ namespace MNP.Server.Providers
         /// <param name="loggingLevel">The minimum level of logging needed</param>
         public void Log(string message, string source, LogLevel loggingLevel)
         {
+            if (string.IsNullOrEmpty(message))
+            {
+                throw new ArgumentNullException("message");
+            }
+
+            if (string.IsNullOrEmpty(source))
+            {
+                throw new ArgumentNullException("source");
+            }
+
             if (loggingLevel == LogLevel.None)
             {
                 throw new NotSupportedException("Logging Level 'None' was not meant to be used in this way and thus unsupported.");
             }
+
             if (AllowedToLog(loggingLevel))
             {
-                // this will do for now, add a proper implementation later.
-                Debug.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(CultureInfo.InvariantCulture), source, message);
+                // for the debugging, we will write out to the console window
+                // TODO :: convert to trace listener or something better
                 Console.WriteLine("[{0} {1}] {2}", DateTime.Now.ToString(CultureInfo.InvariantCulture), source, message);
             }
         }
