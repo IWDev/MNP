@@ -29,7 +29,7 @@ namespace MNP.PluginSample
             get { throw new NotImplementedException(); }
         }
 
-        public void ChangeState(string id, QueuedProcessState newState)
+        public void ChangeState(string id, QueuedProcessState newState, bool localOnly)
         {
             throw new NotImplementedException();
         }
