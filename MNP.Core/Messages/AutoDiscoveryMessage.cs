@@ -9,12 +9,7 @@ namespace MNP.Core.Messages
         public BroadcastMessageType MessageType { get; set; }
         public IPEndPoint IP { get; set; }
 
-        public AutoDiscoveryMessage()
-        {
-            MessageType = BroadcastMessageType.None;
-        }
-
-        public AutoDiscoveryMessage(BroadcastMessageType msgType, EndPoint ip)
+        public AutoDiscoveryMessage(EndPoint ip, BroadcastMessageType msgType = BroadcastMessageType.None)
         {
             MessageType = msgType;
             IP = (IPEndPoint)ip;

@@ -269,7 +269,7 @@ namespace MNP.Server
             }
 
             // Create and prepare the arguments
-            byte[] temp = serialiser.Serialise(new AutoDiscoveryMessage(msgType, _socket.LocalEndPoint));
+            byte[] temp = serialiser.Serialise(new AutoDiscoveryMessage(_socket.LocalEndPoint, msgType));
             byte[] data = BitConverter.GetBytes(temp.Length).Merge(temp);
             // send the data
             UdpClient cli = new UdpClient();
