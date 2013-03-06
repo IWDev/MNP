@@ -16,8 +16,6 @@ namespace MNP.Server.Observers
         private Node ParentNode { get; set; }
         private ILogProvider LogProvider { get; set; }
 
-        private PrioritisedQueueObserver() { }
-
         internal PrioritisedQueueObserver(Node parent, ILogProvider logger)
         {
             if (parent == null)
