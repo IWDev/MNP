@@ -43,11 +43,11 @@ namespace MNP.Server
         private ISocket _clientCommunicationsSocket;
         private IBroadcastSocket _autoDiscoverySocket;
         private PluginManager _pluginManager;
-        private ILogProvider LogProvider { get; set; }
         internal INodeTask NodeTask;
         #endregion
 
         #region "Properties"
+// ReSharper disable MemberCanBePrivate.Global
         public String AutoDiscoveryBindingAddress { get; set; }
         public Int32 AutoDiscoveryPort { get; set; }
         public String ClientBindingAddress { get; set; }
@@ -56,14 +56,15 @@ namespace MNP.Server
         public String InternodeBindingAddress { get; set; }
         public Int32 InternodePort { get; set; }
         public bool UseAutoDiscovery { get; set; }
-
-        internal ISerialiser<AutoDiscoveryMessage, byte[]> AutoDiscoveryMessageSerialiser { get; private set; }
-        internal ISerialiser<ClientMessage, byte[]> ClientMessageSerialiser { get; private set; }
+// ReSharper restore MemberCanBePrivate.Global
+        private ILogProvider LogProvider { get; set; }
+        private ISerialiser<AutoDiscoveryMessage, byte[]> AutoDiscoveryMessageSerialiser { get; set; }
+        private ISerialiser<ClientMessage, byte[]> ClientMessageSerialiser { get; set; }
         internal ISerialiser<ClientProcess, byte[]> ClientProcessSerialiser { get; private set; }
         internal ISerialiser<ClientResultMessage, byte[]> ClientResultMessageSerialiser { get; private set; }
         internal ISerialiser<InterNodeCommunicationMessage, byte[]> InterNodeCommunicationMessageSerialiser { get; private set; }
-        internal ISerialiser<CacheProvider<string, ClientResultMessage>, byte[]> CacheSerialiser { get; set; }
-        internal ISerialiser<IObservableQueue<ClientProcess>, byte[]> PrioritisedQueueSerialiser { get; set; }
+        private ISerialiser<CacheProvider<string, ClientResultMessage>, byte[]> CacheSerialiser { get; set; }
+        private ISerialiser<IObservableQueue<ClientProcess>, byte[]> PrioritisedQueueSerialiser { get; set; }
         internal List<IPAddress> KnownNodes
         {
             get
@@ -149,7 +150,7 @@ namespace MNP.Server
             _internodeListeningSocket.Port = InternodePort;
             _internodeListeningSocket.BindingAddress = IPAddress.Parse(InternodeBindingAddress);
 
-            //_pluginManager = new PluginManager();
+            _pluginManager = new PluginManager();
             _internodeListeningSocket.Start();
             _clientCommunicationsSocket.Start();
 
@@ -249,7 +250,7 @@ namespace MNP.Server
             if (e != null)
             {
                 Console.WriteLine("Client connected...");
-                InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { IsLocalOnly = true, MessageType = InterNodeMessageType.StartUp, Tag = e.Address.ToString() };
+                InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { IsLocalOnly = true, MessageType = InterNodeMessageType.StartUp, Tag = e.Address.ToString() };
                 SendToNode(e.Address, InterNodeCommunicationMessageSerialiser.Serialise(msg));
             }
         }
@@ -328,7 +329,7 @@ namespace MNP.Server
                 throw new ArgumentNullException("tag");
             }
 
-            ProcessQueue.Enqueue(new ClientProcess()
+            ProcessQueue.Enqueue(new ClientProcess
             {
                 State = QueuedProcessState.Runnable,
                 Source = source,
@@ -354,7 +355,7 @@ namespace MNP.Server
             // grab a copy of the cache
             CacheProvider<string, ClientResultMessage> temp = ResultCache;
             temp.ClearSubscribersNoNotify();
-            InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { Data = CacheSerialiser.Serialise(temp), IsLocalOnly = true, MessageType = InterNodeMessageType.FullCacheUpdateReceived };
+            InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = CacheSerialiser.Serialise(temp), IsLocalOnly = true, MessageType = InterNodeMessageType.FullCacheUpdateReceived };
 
             SendToNode(ip, InterNodeCommunicationMessageSerialiser.Serialise(msg));
         }
@@ -385,7 +386,7 @@ namespace MNP.Server
             {
                 Task.Run(() =>
                 {
-                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { Tag = id, IsLocalOnly = true, MessageType = InterNodeMessageType.RemoveFromCache };
+                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Tag = id, IsLocalOnly = true, MessageType = InterNodeMessageType.RemoveFromCache };
                     // not sure this is valid as its non deterministic
                     lock (KnownNodes)
                     {
@@ -426,7 +427,7 @@ namespace MNP.Server
 
             IObservableQueue<ClientProcess> temp = ProcessQueue;
 
-            InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { Data = PrioritisedQueueSerialiser.Serialise(temp), IsLocalOnly = true, MessageType = InterNodeMessageType.FullQueueUpdateReceived };
+            InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Data = PrioritisedQueueSerialiser.Serialise(temp), IsLocalOnly = true, MessageType = InterNodeMessageType.FullQueueUpdateReceived };
 
             SendToNode(ip, InterNodeCommunicationMessageSerialiser.Serialise(msg));
         }
@@ -472,7 +473,7 @@ namespace MNP.Server
             {
                 Task.Run(() =>
                 {
-                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { Tag = id, IsLocalOnly = true, MessageType = InterNodeMessageType.RemoveFromQueue };
+                    InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { Tag = id, IsLocalOnly = true, MessageType = InterNodeMessageType.RemoveFromQueue };
                     // not sure this is valid as its non deterministic
                     lock (KnownNodes)
                     {
@@ -507,7 +508,7 @@ namespace MNP.Server
 
             if (msgType == InterNodeMessageType.FullQueueUpdateSent || msgType == InterNodeMessageType.FullCacheUpdateSent)
             {
-                InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage() { MessageType = msgType, IsLocalOnly = true };
+                InterNodeCommunicationMessage msg = new InterNodeCommunicationMessage { MessageType = msgType, IsLocalOnly = true };
                 SendToNode(ip, InterNodeCommunicationMessageSerialiser.Serialise(msg));
             }
         }
@@ -529,23 +530,23 @@ namespace MNP.Server
             _internodeConnectionSocket.ConnectTo(ipe);
         }
 
-        internal bool SendToNode(IPAddress nodeAddress, byte[] data)
+        internal bool SendToNode(IPAddress nodeAddress, byte[] sourceData)
         {
             // prepend the length as we send the data
-            byte[] _data = BitConverter.GetBytes(data.Length).Merge(data);
-            if (_data == null) throw new ArgumentNullException("_data");
+            byte[] data = BitConverter.GetBytes(sourceData.Length).Merge(sourceData);
 
             // test to see if the listening socket has the connection open already
-            if (!_internodeListeningSocket.SendTo(nodeAddress.ToString(), _data))
+            if (!_internodeListeningSocket.SendTo(nodeAddress.ToString(), data))
             {
                 // test to see if the connection socket has the connection open already
-                if (!_internodeConnectionSocket.SendTo(nodeAddress.ToString(), _data))
+                if (!_internodeConnectionSocket.SendTo(nodeAddress.ToString(), data))
                 {
                     return false;
                 }
             }
             return true;
         }
+
         #endregion
         #endregion
     }
