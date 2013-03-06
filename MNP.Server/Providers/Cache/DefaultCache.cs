@@ -24,6 +24,11 @@ namespace MNP.Server.Providers
         {
             get
             {
+                if (key == null)
+                {
+                    throw new ArgumentNullException("key");
+                }
+
                 if (_cache.Contains(key))
                 {
                     return _cache[key];
@@ -43,6 +48,11 @@ namespace MNP.Server.Providers
         /// <returns>A bool stating whether the key exists or not</returns>
         public override bool Contains(TKey key)
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+
             return _cache.Contains(key);
         }
 
@@ -54,6 +64,16 @@ namespace MNP.Server.Providers
         /// <param name="addToLocalCacheOnly">Whether to add the key to the local cache only or notify subscribers.</param>
         public override void Write(TKey key, TValue data, bool addToLocalCacheOnly = false)
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+
+            if (data == null)
+            {
+                throw new ArgumentNullException("data");
+            }
+
             // add the entry to our cache regardless
             _cache.AddNewEntry(key, data);
 
@@ -64,9 +84,14 @@ namespace MNP.Server.Providers
             }
         }
 
-        public override void Remove(TKey criteria, bool notifySubscribers)
+        public override void Remove(TKey key, bool notifySubscribers)
         {
-            _cache.RemoveEntry(criteria);
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+
+            _cache.RemoveEntry(key);
         }
 
         /// <summary>
