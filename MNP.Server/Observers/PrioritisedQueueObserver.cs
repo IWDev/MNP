@@ -71,6 +71,7 @@ namespace MNP.Server.Observers
             if (!value.LocalOnly)
             {
                 // start the task
+                ParentNode.ProcessQueue.ChangeState(value.Tag, QueuedProcessState.Running, false);
                 Task<byte[]> task = ParentNode.NodeTask.Execute(value.Data);
                 ParentNode.AddToCache(false, value.Tag, await task);
             }

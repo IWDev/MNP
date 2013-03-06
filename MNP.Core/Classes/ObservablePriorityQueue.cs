@@ -169,9 +169,17 @@ namespace MNP.Core
             _data.Remove(_data.Find(criteria));
         }
 
-        public void ChangeState(string id, QueuedProcessState newState)
+        public void ChangeState(string id, QueuedProcessState newState, bool localOnly)
         {
-            _data.First(x => x.Tag == id).State = newState;
+            lock (_data)
+            {
+                _data.First(x => x.Tag == id).State = newState;
+            }
+
+            if (!localOnly)
+            {
+                // TODO :: register the change with the other subscribers    
+            }
         }
 
         /// <summary>

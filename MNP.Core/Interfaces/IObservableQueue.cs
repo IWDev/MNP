@@ -32,7 +32,7 @@ namespace MNP.Core
         /// </summary>
         Int32 Count { get; }
 
-        void ChangeState(string id, QueuedProcessState newState);
+        void ChangeState(string id, QueuedProcessState newState, bool localOnly);
 
         void Remove(Predicate<T> criteria);
 

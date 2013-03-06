@@ -76,7 +76,7 @@ namespace MNP.Server
 
         #region "Message Collections"
         private CacheProvider<String, ClientResultMessage> ResultCache { get; set; }
-        private IObservableQueue<ClientProcess> ProcessQueue { get; set; }
+        internal IObservableQueue<ClientProcess> ProcessQueue { get; set; }
         #endregion
 
         #region "Start/Stop"
@@ -160,6 +160,8 @@ namespace MNP.Server
                 _autoDiscoverySocket.Start();
                 _autoDiscoverySocket.SendBroadcastMessage(BroadcastMessageType.Startup, AutoDiscoveryMessageSerialiser, AutoDiscoveryPort);
             }
+
+            // TODO :: add TCP keep alive functionality
         }
 
         public void Stop()
@@ -457,7 +459,7 @@ namespace MNP.Server
                 throw new ArgumentException("The specified data state is not valid", "dataState");
             }
 
-            ProcessQueue.ChangeState(id, (QueuedProcessState)BitConverter.ToInt32(dataState, 0));
+            ProcessQueue.ChangeState(id, (QueuedProcessState)BitConverter.ToInt32(dataState, 0), true);
         }
 
         private void RemoveFromQueue(bool localOnly, string id)
